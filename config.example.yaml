@@ -1,0 +1,21 @@
+active_profile: local
+
+profiles:
+  local:
+    mongo_uri: "mongodb://localhost:27017"
+    db_name: "your_db_name"
+    requires_vpn: false
+    label: "Local MongoDB"
+
+query:
+  default_limit: 50
+  max_limit: 500
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+
+matrix:
+  homeserver: "https://your-matrix-homeserver.org"
+  access_token: "YOUR_MATRIX_ACCESS_TOKEN_HERE"
+  default_room_id: "!yourRoomId:your-matrix-homeserver.org"

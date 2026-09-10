@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mongo Query Console</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --surface: #161d27;
+    --surface-2: #1c2530;
+    --border: #263140;
+    --text: #e8edf2;
+    --text-muted: #8b98a5;
+    --accent: #4fd1c5;
+    --accent-dim: #2e5c57;
+    --warn: #f0a868;
+    --danger: #e8756a;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .brand-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+
+  .brand-name {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.2px;
+  }
+
+  .brand-name .mono {
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .status-pill {
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-pill .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+  }
+
+  .status-pill.ok .dot { background: var(--accent); }
+  .status-pill.err .dot { background: var(--danger); }
+
+  .layout {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+    display: grid;
+    gap: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title::before {
+    content: "";
+    width: 3px;
+    height: 12px;
+    background: var(--accent);
+    display: inline-block;
+    border-radius: 2px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], select {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 9px 10px;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    outline: none;
+  }
+
+  input[type="text"]:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  .row-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .filter-row {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1.4fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 10px;
+  }
+
+  .icon-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .icon-btn:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .add-filter-btn {
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .add-filter-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .run-btn {
+    background: var(--accent);
+    color: #06201d;
+    border: none;
+    border-radius: 6px;
+    padding: 11px 22px;
+    font-weight: 600;
+    font-size: 13.5px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .run-btn:hover { filter: brightness(1.08); }
+  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .preview-toggle {
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    font-family: var(--mono);
+    user-select: none;
+  }
+
+  .preview {
+    display: none;
+    margin-top: 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .preview.show { display: block; }
+
+  .results-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+  }
+
+  .results-count {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .results-count b { color: var(--accent); }
+
+  .view-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px;
+  }
+
+  .view-toggle button {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 5px 12px;
+    font-size: 11.5px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .view-toggle button.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+  }
+
+  th {
+    color: var(--accent);
+    font-weight: 600;
+    background: var(--surface-2);
+    position: sticky;
+    top: 0;
+  }
+
+  tr:hover td { background: var(--surface-2); }
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 480px;
+    overflow-y: auto;
+  }
+
+  pre.json-view {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 480px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+
+  .empty-state .glyph {
+    font-family: var(--mono);
+    font-size: 22px;
+    color: var(--border);
+    margin-bottom: 10px;
+  }
+
+  .error-box {
+    background: rgba(232, 117, 106, 0.1);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    margin-bottom: 16px;
+  }
+
+  .hint {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  .jsontextarea {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--accent);
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    outline: none;
+    resize: vertical;
+  }
+
+  .jsontextarea:focus { border-color: var(--accent); }
+
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  .checkbox-label input { width: auto; }
+
+  .profile-select {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-family: var(--mono);
+  }
+
+  .vpn-badge {
+    font-size: 10px;
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: 6px;
+  }
+
+  .image-panel {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .image-type-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .type-card {
+    flex: 1;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    cursor: pointer;
+    text-align: center;
+  }
+
+  .type-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .type-card .glyph { font-family: var(--mono); font-size: 20px; color: var(--accent); }
+  .type-card .label { font-size: 12.5px; margin-top: 6px; color: var(--text); }
+  .type-card .desc { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  .image-preview-box {
+    text-align: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 14px;
+  }
+
+  .image-preview-box img {
+    max-width: 100%;
+    border-radius: 4px;
+  }
+
+  .matrix-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 10px;
+    margin-top: 14px;
+    align-items: end;
+  }
+
+  .secondary-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 11px 18px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .secondary-btn:hover { border-color: var(--accent); }
+  .secondary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .status-msg {
+    font-size: 12px;
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+  .status-msg.success { color: var(--accent); }
+  .status-msg.error { color: var(--danger); }
+
+  .column-checkbox-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px 14px;
+    margin-top: 8px;
+    margin-bottom: 4px;
+  }
+
+  .column-checkbox-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .column-checkbox-item input { width: auto; }
+
+  .tabbar {
+    display: flex;
+    gap: 4px;
+    padding: 10px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  .tab-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 10px;
+  }
+
+  .list-item-main { flex: 1; }
+  .list-item-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .list-item-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; font-family: var(--mono); }
+  .list-item-actions { display: flex; gap: 8px; align-items: center; }
+
+  .badge {
+    font-size: 10.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: var(--mono);
+  }
+  .badge.on { background: rgba(79,209,197,0.15); color: var(--accent); }
+  .badge.off { background: rgba(139,152,165,0.15); color: var(--text-muted); }
+  .badge.error { background: rgba(232,117,106,0.15); color: var(--danger); }
+  .badge.vpn { background: rgba(240,168,104,0.15); color: var(--warn); }
+
+  .small-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .small-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .small-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <span class="brand-dot"></span>
+    <span class="brand-name">Mongo Query Console<span class="mono" id="dbNameLabel"></span></span>
+  </div>
+  <div class="status">
+    <select id="profileSelect" class="profile-select"><option>loading...</option></select>
+    <span class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">checking...</span></span>
+  </div>
+</div>
+
+<div class="tabbar">
+  <button class="tab-btn active" data-tab="console">Query Console</button>
+  <button class="tab-btn" data-tab="automations">Automations</button>
+  <button class="tab-btn" data-tab="databases">Databases</button>
+</div>
+
+<div class="layout" id="tabConsole">
+
+  <div class="card">
+    <p class="card-title">Connection</p>
+    <div class="row-grid">
+      <div>
+        <label for="baseUrl">Service URL</label>
+        <input type="text" id="baseUrl" value="http://localhost:8000">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="two-col" style="margin-bottom:16px; align-items:end;">
+      <div>
+        <label for="collectionSelect">Collection</label>
+        <select id="collectionSelect"><option>loading...</option></select>
+      </div>
+      <div class="mode-switch">
+        <div class="view-toggle" style="width:fit-content; margin-left:auto;">
+          <button id="simpleModeBtn" class="active">Simple builder</button>
+          <button id="advancedModeBtn">Advanced (raw query)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================== SIMPLE MODE ===================== -->
+    <div id="simplePanel">
+      <p class="card-title">Build query</p>
+
+      <div class="two-col" style="margin-bottom:16px;">
+        <div></div>
+        <div>
+          <label for="limitInput">Limit (max results)</label>
+          <input type="text" id="limitInput" value="50">
+        </div>
+      </div>
+
+      <label>Filters — only rows with a value are applied, all rows combined with AND</label>
+      <div id="filterRows"></div>
+      <button class="add-filter-btn" id="addFilterBtn">+ add filter</button>
+
+      <div class="two-col" style="margin-top:16px;">
+        <div>
+          <label for="sortField">Sort by field</label>
+          <input type="text" id="sortField" placeholder="e.g. salary">
+        </div>
+        <div>
+          <label for="sortOrder">Sort order</label>
+          <select id="sortOrder">
+            <option value="1">Ascending (low → high)</option>
+            <option value="-1">Descending (high → low)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="run-btn" id="runBtn">Run query</button>
+        <span class="preview-toggle" id="previewToggle">▸ view generated query</span>
+      </div>
+      <div class="preview" id="previewBox"></div>
+    </div>
+
+    <!-- ===================== ADVANCED MODE ===================== -->
+    <div id="advancedPanel" style="display:none;">
+      <p class="card-title">Advanced — raw MongoDB query</p>
+
+      <label for="opSelect">Operation</label>
+      <select id="opSelect" style="margin-bottom:16px;">
+        <option value="find">Find (filter / $or / $and / nested operators)</option>
+        <option value="aggregate">Aggregate ($group, $lookup, $match, any pipeline)</option>
+        <option value="insert">Insert documents</option>
+        <option value="update">Update documents</option>
+        <option value="delete">Delete documents</option>
+      </select>
+
+      <div id="advFindBox">
+        <label>Filter (JSON)</label>
+        <textarea class="jsontextarea" id="advFilter" rows="4">{"$or": [{"department": "Engineering"}, {"department": "Sales"}]}</textarea>
+        <div class="two-col" style="margin-top:10px;">
+          <div>
+            <label>Projection (JSON, optional)</label>
+            <textarea class="jsontextarea" id="advProjection" rows="2">{"name": 1, "salary": 1, "_id": 0}</textarea>
+          </div>
+          <div>
+            <label>Sort (JSON array, optional)</label>
+            <textarea class="jsontextarea" id="advSort" rows="2">[["salary", -1]]</textarea>
+          </div>
+        </div>
+        <div class="two-col" style="margin-top:10px;">
+          <div>
+            <label>Skip</label>
+            <input type="text" id="advSkip" value="0">
+          </div>
+          <div>
+            <label>Limit</label>
+            <input type="text" id="advLimit" value="50">
+          </div>
+        </div>
+      </div>
+
+      <div id="advAggBox" style="display:none;">
+        <label>Aggregation pipeline (JSON array)</label>
+        <textarea class="jsontextarea" id="advPipeline" rows="6">[
+  { "$group": { "_id": "$department", "avg_salary": { "$avg": "$salary" }, "total": { "$sum": 1 } } },
+  { "$sort": { "avg_salary": -1 } }
+]</textarea>
+      </div>
+
+      <div id="advInsertBox" style="display:none;">
+        <label>Documents to insert (JSON array)</label>
+        <textarea class="jsontextarea" id="advDocuments" rows="6">[
+  { "emp_id": "E010", "name": "New Employee", "department": "Engineering", "salary": 600000 }
+]</textarea>
+      </div>
+
+      <div id="advUpdateBox" style="display:none;">
+        <label>Filter — which documents to update (JSON)</label>
+        <textarea class="jsontextarea" id="advUpdateFilter" rows="3">{"emp_id": "E006"}</textarea>
+        <label style="margin-top:10px;">Update — MongoDB update operators (JSON)</label>
+        <textarea class="jsontextarea" id="advUpdateOps" rows="3">{"$set": {"salary": 700000}}</textarea>
+        <label class="checkbox-label" style="margin-top:10px;">
+          <input type="checkbox" id="advUpdateMany"> Apply to ALL matching documents (not just the first)
+        </label>
+      </div>
+
+      <div id="advDeleteBox" style="display:none;">
+        <label>Filter — which documents to delete (JSON)</label>
+        <textarea class="jsontextarea" id="advDeleteFilter" rows="3">{"emp_id": "E099"}</textarea>
+        <label class="checkbox-label" style="margin-top:10px;">
+          <input type="checkbox" id="advDeleteMany"> Apply to ALL matching documents (not just the first)
+        </label>
+        <p class="hint" style="color:var(--warn);">Deleting is permanent — double-check the filter before running.</p>
+      </div>
+
+      <div class="actions">
+        <button class="run-btn" id="advRunBtn">Run</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="results-head">
+      <p class="card-title" style="margin:0;">Results</p>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <span class="results-count" id="resultsCount"></span>
+        <div class="view-toggle">
+          <button id="tableViewBtn" class="active">Table</button>
+          <button id="jsonViewBtn">Raw JSON</button>
+        </div>
+      </div>
+    </div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="glyph">{ }</div>
+        Pick a collection and run a query to see results here.
+      </div>
+    </div>
+
+    <div class="image-panel" id="imagePanel" style="display:none;">
+      <p class="card-title">Create image from this result</p>
+
+      <div class="image-type-row">
+        <div class="type-card selected" id="tableTypeCard" data-type="table">
+          <div class="glyph">▤</div>
+          <div class="label">Table</div>
+          <div class="desc">All rows, side by side</div>
+        </div>
+        <div class="type-card" id="cardTypeCard" data-type="card">
+          <div class="glyph">▢</div>
+          <div class="label">Single card</div>
+          <div class="desc">First record, highlighted</div>
+        </div>
+      </div>
+
+      <label for="imageTitleInput">Image title</label>
+      <input type="text" id="imageTitleInput" placeholder="e.g. Engineering Team">
+
+      <label style="margin-top:14px;">Columns to include (table mode)</label>
+      <div id="columnCheckboxes" class="column-checkbox-grid"></div>
+
+      <div class="actions">
+        <button class="run-btn" id="createImageBtn">Create image</button>
+      </div>
+
+      <div class="image-preview-box" id="imagePreviewBox" style="display:none;">
+        <img id="previewImg" src="">
+        <div class="matrix-row">
+          <div>
+            <label for="matrixRoomInput">Matrix room ID (optional — uses config default)</label>
+            <input type="text" id="matrixRoomInput" placeholder="!abcdefgh:matrix.org">
+          </div>
+          <div>
+            <label for="matrixCaptionInput">Caption (optional)</label>
+            <input type="text" id="matrixCaptionInput" placeholder="e.g. Weekly headcount">
+          </div>
+          <button class="secondary-btn" id="sendMatrixBtn">Send to Matrix</button>
+        </div>
+        <div class="status-msg" id="matrixStatusMsg"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===================== AUTOMATIONS TAB ===================== -->
+<div class="layout" id="tabAutomations" style="display:none;">
+
+  <div class="card">
+    <div class="results-head">
+      <p class="card-title" style="margin:0;">Saved automations</p>
+      <button class="run-btn" id="newAutomationBtn">+ New automation</button>
+    </div>
+    <p class="hint" style="margin-bottom:14px;">Ye queries apne schedule ke hisaab se khud chalti hain — result ki image apne aap Matrix room me chali jaati hai.</p>
+    <div id="automationsList"></div>
+  </div>
+
+  <div class="card" id="automationFormCard" style="display:none;">
+    <p class="card-title" id="automationFormTitle">New automation</p>
+
+    <div class="two-col" style="margin-bottom:14px;">
+      <div>
+        <label for="autoName">Name</label>
+        <input type="text" id="autoName" placeholder="e.g. Weekly Engineering Headcount">
+      </div>
+      <div>
+        <label for="autoProfile">Database profile</label>
+        <select id="autoProfile"></select>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-bottom:14px;">
+      <div>
+        <label for="autoCollection">Collection</label>
+        <input type="text" id="autoCollection" placeholder="e.g. employees">
+      </div>
+      <div>
+        <label for="autoOperation">Operation</label>
+        <select id="autoOperation">
+          <option value="find">Find</option>
+          <option value="aggregate">Aggregate</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="autoFindFields">
+      <label>Filter (JSON)</label>
+      <textarea class="jsontextarea" id="autoFilter" rows="3">{}</textarea>
+    </div>
+    <div id="autoAggFields" style="display:none; margin-top:10px;">
+      <label>Pipeline (JSON array)</label>
+      <textarea class="jsontextarea" id="autoPipeline" rows="4">[{"$group": {"_id": "$department", "count": {"$sum": 1}}}]</textarea>
+    </div>
+
+    <div class="two-col" style="margin-top:14px;">
+      <div>
+        <label for="autoImageType">Image type</label>
+        <select id="autoImageType">
+          <option value="table">Table</option>
+          <option value="card">Single card</option>
+        </select>
+      </div>
+      <div>
+        <label for="autoTitle">Image title</label>
+        <input type="text" id="autoTitle" placeholder="e.g. Weekly Headcount">
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:14px;">
+      <div>
+        <label for="autoScheduleType">Schedule type</label>
+        <select id="autoScheduleType">
+          <option value="interval">Fixed interval (har N minute me)</option>
+          <option value="daily">Fixed daily time (roz ek time pe)</option>
+          <option value="manual">Manual only (kabhi khud nahi chalegi)</option>
+        </select>
+      </div>
+      <div id="autoIntervalField">
+        <label for="autoScheduleMinutes">Run every (minutes)</label>
+        <input type="text" id="autoScheduleMinutes" value="60">
+      </div>
+      <div id="autoDailyField" style="display:none;">
+        <label for="autoRunAtTime">Run daily at (24hr time)</label>
+        <input type="time" id="autoRunAtTime" value="09:00">
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:14px;">
+      <div></div>
+      <div>
+        <label class="checkbox-label" style="margin-top:22px;">
+          <input type="checkbox" id="autoEnabled" checked> Enabled
+        </label>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top:14px;">
+      <div>
+        <label for="autoRoomId">Matrix room ID (optional — uses config default)</label>
+        <input type="text" id="autoRoomId" placeholder="!abcdefgh:matrix.org">
+      </div>
+      <div>
+        <label for="autoCaption">Caption (optional)</label>
+        <input type="text" id="autoCaption" placeholder="e.g. Weekly headcount report">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="run-btn" id="saveAutomationBtn">Save automation</button>
+      <button class="secondary-btn" id="cancelAutomationBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== DATABASES TAB ===================== -->
+<div class="layout" id="tabDatabases" style="display:none;">
+
+  <div class="card">
+    <div class="results-head">
+      <p class="card-title" style="margin:0;">MongoDB databases</p>
+      <button class="run-btn" id="newDbBtn">+ Add database</button>
+    </div>
+    <p class="hint" style="margin-bottom:14px;">Har database ke saamne dikhta hai kitni automations abhi usme active hain.</p>
+    <div id="databasesList"></div>
+  </div>
+
+  <div class="card" id="dbFormCard" style="display:none;">
+    <p class="card-title">Add database</p>
+    <div class="two-col" style="margin-bottom:14px;">
+      <div>
+        <label for="dbName">Profile name (no spaces)</label>
+        <input type="text" id="dbName" placeholder="e.g. office_vpn">
+      </div>
+      <div>
+        <label for="dbLabel">Display label</label>
+        <input type="text" id="dbLabel" placeholder="e.g. Office DB (VPN)">
+      </div>
+    </div>
+    <label for="dbUri">Mongo URI</label>
+    <input type="text" id="dbUri" placeholder="mongodb://host:27017" style="margin-bottom:14px;">
+    <div class="two-col">
+      <div>
+        <label for="dbDatabaseName">Database name</label>
+        <input type="text" id="dbDatabaseName" placeholder="e.g. office_db">
+      </div>
+      <div>
+        <label class="checkbox-label" style="margin-top:22px;">
+          <input type="checkbox" id="dbRequiresVpn"> Requires VPN
+        </label>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="run-btn" id="saveDbBtn">Add database</button>
+      <button class="secondary-btn" id="cancelDbBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const state = { collections: [], lastResults: [], view: 'table' };
+
+function baseUrl() { return document.getElementById('baseUrl').value.replace(/\/$/, ''); }
+
+async function checkHealth() {
+  const pill = document.getElementById('statusPill');
+  const text = document.getElementById('statusText');
+  try {
+    const res = await fetch(baseUrl() + '/');
+    const data = await res.json();
+    if (data.status === 'ok') {
+      pill.className = 'status-pill ok';
+      text.textContent = 'connected';
+      document.getElementById('dbNameLabel').textContent = data.database || '';
+    } else {
+      pill.className = 'status-pill err';
+      text.textContent = 'mongo unreachable';
+    }
+  } catch (e) {
+    pill.className = 'status-pill err';
+    text.textContent = 'service unreachable';
+  }
+}
+
+async function loadCollections() {
+  const select = document.getElementById('collectionSelect');
+  try {
+    const res = await fetch(baseUrl() + '/collections');
+    const data = await res.json();
+    state.collections = data.collections || [];
+    select.innerHTML = state.collections.length
+      ? state.collections.map(c => `<option value="${c}">${c}</option>`).join('')
+      : '<option value="">no collections found</option>';
+  } catch (e) {
+    select.innerHTML = '<option value="">could not load</option>';
+  }
+}
+
+async function loadProfiles() {
+  const select = document.getElementById('profileSelect');
+  try {
+    const res = await fetch(baseUrl() + '/profiles');
+    const data = await res.json();
+    select.innerHTML = data.profiles.map(p =>
+      `<option value="${p.name}" ${p.name === data.active_profile ? 'selected' : ''}>${p.label}${p.requires_vpn ? ' (VPN)' : ''}</option>`
+    ).join('');
+  } catch (e) {
+    select.innerHTML = '<option value="">could not load profiles</option>';
+  }
+}
+
+async function switchProfile(name) {
+  await fetch(baseUrl() + '/profiles/switch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ profile: name })
+  });
+  await checkHealth();
+  await loadCollections();
+}
+
+function addFilterRow() {
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-row';
+  wrap.innerHTML = `
+    <div>
+      <label>Field</label>
+      <input type="text" class="f-field" placeholder="e.g. department">
+    </div>
+    <div>
+      <label>Condition</label>
+      <select class="f-op">
+        <option value="eq">equals</option>
+        <option value="ne">not equal to</option>
+        <option value="gt">greater than</option>
+        <option value="gte">greater or equal</option>
+        <option value="lt">less than</option>
+        <option value="lte">less or equal</option>
+        <option value="contains">contains (array/text)</option>
+      </select>
+    </div>
+    <div>
+      <label>Value</label>
+      <input type="text" class="f-value" placeholder="e.g. Engineering">
+    </div>
+    <button class="icon-btn" title="remove filter">✕</button>
+  `;
+  wrap.querySelector('.icon-btn').onclick = () => wrap.remove();
+  document.getElementById('filterRows').appendChild(wrap);
+}
+
+function coerceValue(raw) {
+  if (raw === '') return raw;
+  if (raw === 'true') return true;
+  if (raw === 'false') return false;
+  if (!isNaN(raw) && raw.trim() !== '') return Number(raw);
+  return raw;
+}
+
+function buildFilter() {
+  const rows = document.querySelectorAll('.filter-row');
+  const filter = {};
+  rows.forEach(row => {
+    const field = row.querySelector('.f-field').value.trim();
+    const op = row.querySelector('.f-op').value;
+    const rawVal = row.querySelector('.f-value').value.trim();
+    if (!field || rawVal === '') return;
+    const val = coerceValue(rawVal);
+    const opMap = { eq: null, ne: '$ne', gt: '$gt', gte: '$gte', lt: '$lt', lte: '$lte', contains: null };
+    if (op === 'eq' || op === 'contains') {
+      filter[field] = val;
+    } else {
+      filter[field] = { [opMap[op]]: val };
+    }
+  });
+  return filter;
+}
+
+function buildQueryBody() {
+  const limit = parseInt(document.getElementById('limitInput').value, 10) || 50;
+  const sortField = document.getElementById('sortField').value.trim();
+  const sortOrder = parseInt(document.getElementById('sortOrder').value, 10);
+  const body = { filter: buildFilter(), limit };
+  if (sortField) body.sort = [[sortField, sortOrder]];
+  return body;
+}
+
+function updatePreview() {
+  const collection = document.getElementById('collectionSelect').value;
+  const body = buildQueryBody();
+  const curl = `curl -X POST ${baseUrl()}/${collection}/query \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body)}'`;
+  document.getElementById('previewBox').textContent = curl;
+}
+
+function renderTable(data) {
+  const area = document.getElementById('resultsArea');
+  if (!data.length) {
+    area.innerHTML = `<div class="empty-state"><div class="glyph">∅</div>No documents matched this query.</div>`;
+    return;
+  }
+  const cols = [...new Set(data.flatMap(d => Object.keys(d)))];
+  let html = '<div class="table-wrap"><table><thead><tr>' +
+    cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+  data.forEach(doc => {
+    html += '<tr>' + cols.map(c => {
+      let v = doc[c];
+      if (v === undefined) v = '';
+      else if (typeof v === 'object') v = JSON.stringify(v);
+      return `<td title="${String(v).replace(/"/g, '&quot;')}">${v}</td>`;
+    }).join('') + '</tr>';
+  });
+  html += '</tbody></table></div>';
+  area.innerHTML = html;
+}
+
+function renderJson(data) {
+  document.getElementById('resultsArea').innerHTML =
+    `<pre class="json-view">${JSON.stringify(data, null, 2)}</pre>`;
+}
+
+function renderResults() {
+  if (state.view === 'table') renderTable(state.lastResults);
+  else renderJson(state.lastResults);
+
+  const imagePanel = document.getElementById('imagePanel');
+  imagePanel.style.display = state.lastResults.length ? 'block' : 'none';
+  document.getElementById('imagePreviewBox').style.display = 'none';
+
+  if (state.lastResults.length) populateColumnCheckboxes();
+}
+
+function populateColumnCheckboxes() {
+  const cols = [...new Set(state.lastResults.flatMap(d => Object.keys(d)))];
+  const box = document.getElementById('columnCheckboxes');
+  box.innerHTML = cols.map(c => `
+    <label class="column-checkbox-item">
+      <input type="checkbox" class="col-checkbox" value="${c}" ${c === '_id' ? '' : 'checked'}>
+      ${c}
+    </label>
+  `).join('');
+}
+
+function getSelectedColumns() {
+  return Array.from(document.querySelectorAll('.col-checkbox:checked')).map(cb => cb.value);
+}
+
+async function runQuery() {
+  const collection = document.getElementById('collectionSelect').value;
+  const runBtn = document.getElementById('runBtn');
+  const countEl = document.getElementById('resultsCount');
+  if (!collection) return;
+
+  updatePreview();
+  runBtn.disabled = true;
+  runBtn.textContent = 'Running...';
+  countEl.textContent = '';
+
+  try {
+    const res = await fetch(`${baseUrl()}/${collection}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildQueryBody())
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('resultsArea').innerHTML =
+        `<div class="error-box">${data.detail || 'Something went wrong'}</div>`;
+      countEl.textContent = '';
+    } else {
+      state.lastResults = data.data || [];
+      countEl.innerHTML = `<b>${data.count}</b> document${data.count === 1 ? '' : 's'}`;
+      renderResults();
+    }
+  } catch (e) {
+    document.getElementById('resultsArea').innerHTML =
+      `<div class="error-box">Could not reach the service. Check the Service URL above and that uvicorn is running.</div>`;
+  }
+
+  runBtn.disabled = false;
+  runBtn.textContent = 'Run query';
+}
+
+document.getElementById('addFilterBtn').onclick = addFilterRow;
+document.getElementById('runBtn').onclick = runQuery;
+
+// ---------------- Mode switching ----------------
+document.getElementById('simpleModeBtn').onclick = () => {
+  document.getElementById('simplePanel').style.display = 'block';
+  document.getElementById('advancedPanel').style.display = 'none';
+  document.getElementById('simpleModeBtn').classList.add('active');
+  document.getElementById('advancedModeBtn').classList.remove('active');
+};
+document.getElementById('advancedModeBtn').onclick = () => {
+  document.getElementById('simplePanel').style.display = 'none';
+  document.getElementById('advancedPanel').style.display = 'block';
+  document.getElementById('advancedModeBtn').classList.add('active');
+  document.getElementById('simpleModeBtn').classList.remove('active');
+};
+
+// ---------------- Advanced: operation switching ----------------
+const advBoxes = {
+  find: 'advFindBox', aggregate: 'advAggBox', insert: 'advInsertBox',
+  update: 'advUpdateBox', delete: 'advDeleteBox'
+};
+document.getElementById('opSelect').onchange = (e) => {
+  Object.values(advBoxes).forEach(id => document.getElementById(id).style.display = 'none');
+  document.getElementById(advBoxes[e.target.value]).style.display = 'block';
+};
+
+function safeParse(text, fallback) {
+  const trimmed = text.trim();
+  if (!trimmed) return fallback;
+  return JSON.parse(trimmed);
+}
+
+async function runAdvanced() {
+  const collection = document.getElementById('collectionSelect').value;
+  const op = document.getElementById('opSelect').value;
+  const btn = document.getElementById('advRunBtn');
+  const countEl = document.getElementById('resultsCount');
+  if (!collection) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+  countEl.textContent = '';
+
+  try {
+    let res, data, url, opts;
+
+    if (op === 'find') {
+      const body = {
+        filter: safeParse(document.getElementById('advFilter').value, {}),
+        projection: safeParse(document.getElementById('advProjection').value, null),
+        sort: safeParse(document.getElementById('advSort').value, null),
+        skip: parseInt(document.getElementById('advSkip').value, 10) || 0,
+        limit: parseInt(document.getElementById('advLimit').value, 10) || 50,
+      };
+      url = `${baseUrl()}/${collection}/query`; opts = { method: 'POST', body: JSON.stringify(body) };
+    } else if (op === 'aggregate') {
+      const body = { pipeline: safeParse(document.getElementById('advPipeline').value, []) };
+      url = `${baseUrl()}/${collection}/aggregate`; opts = { method: 'POST', body: JSON.stringify(body) };
+    } else if (op === 'insert') {
+      const body = { documents: safeParse(document.getElementById('advDocuments').value, []) };
+      url = `${baseUrl()}/${collection}/insert`; opts = { method: 'POST', body: JSON.stringify(body) };
+    } else if (op === 'update') {
+      const body = {
+        filter: safeParse(document.getElementById('advUpdateFilter').value, {}),
+        update: safeParse(document.getElementById('advUpdateOps').value, {}),
+        many: document.getElementById('advUpdateMany').checked,
+      };
+      url = `${baseUrl()}/${collection}/update`; opts = { method: 'PATCH', body: JSON.stringify(body) };
+    } else if (op === 'delete') {
+      const body = {
+        filter: safeParse(document.getElementById('advDeleteFilter').value, {}),
+        many: document.getElementById('advDeleteMany').checked,
+      };
+      url = `${baseUrl()}/${collection}/delete`; opts = { method: 'DELETE', body: JSON.stringify(body) };
+    }
+
+    opts.headers = { 'Content-Type': 'application/json' };
+    res = await fetch(url, opts);
+    data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('resultsArea').innerHTML = `<div class="error-box">${data.detail || 'Something went wrong'}</div>`;
+    } else if (data.data !== undefined) {
+      state.lastResults = data.data || [];
+      countEl.innerHTML = `<b>${data.count}</b> document${data.count === 1 ? '' : 's'}`;
+      renderResults();
+    } else {
+      // insert/update/delete responses — show as JSON summary
+      state.lastResults = [data];
+      countEl.textContent = 'operation result';
+      renderJson(data);
+    }
+  } catch (e) {
+    document.getElementById('resultsArea').innerHTML =
+      `<div class="error-box">${e instanceof SyntaxError ? 'Invalid JSON — please check your syntax.' : 'Could not reach the service.'}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Run';
+}
+
+document.getElementById('advRunBtn').onclick = runAdvanced;
+
+// ---------------- Profile switching ----------------
+document.getElementById('profileSelect').addEventListener('change', (e) => switchProfile(e.target.value));
+
+// ---------------- Image creation ----------------
+let selectedImageType = 'table';
+document.getElementById('tableTypeCard').onclick = () => {
+  selectedImageType = 'table';
+  document.getElementById('tableTypeCard').classList.add('selected');
+  document.getElementById('cardTypeCard').classList.remove('selected');
+};
+document.getElementById('cardTypeCard').onclick = () => {
+  selectedImageType = 'card';
+  document.getElementById('cardTypeCard').classList.add('selected');
+  document.getElementById('tableTypeCard').classList.remove('selected');
+};
+
+let lastImageBase64 = null;
+
+document.getElementById('createImageBtn').onclick = async () => {
+  const btn = document.getElementById('createImageBtn');
+  btn.disabled = true;
+  btn.textContent = 'Creating...';
+
+  try {
+    const res = await fetch(`${baseUrl()}/image/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: state.lastResults,
+        columns: selectedImageType === 'table' ? getSelectedColumns() : null,
+        image_type: selectedImageType,
+        title: document.getElementById('imageTitleInput').value || '',
+      })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('matrixStatusMsg').className = 'status-msg error';
+      document.getElementById('matrixStatusMsg').textContent = data.detail || 'Could not create image';
+      document.getElementById('imagePreviewBox').style.display = 'block';
+    } else {
+      lastImageBase64 = data.image_base64;
+      document.getElementById('previewImg').src = `data:image/png;base64,${data.image_base64}`;
+      document.getElementById('imagePreviewBox').style.display = 'block';
+      document.getElementById('matrixStatusMsg').textContent = '';
+    }
+  } catch (e) {
+    document.getElementById('matrixStatusMsg').className = 'status-msg error';
+    document.getElementById('matrixStatusMsg').textContent = 'Could not reach the service.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Create image';
+};
+
+document.getElementById('sendMatrixBtn').onclick = async () => {
+  if (!lastImageBase64) return;
+  const btn = document.getElementById('sendMatrixBtn');
+  const msg = document.getElementById('matrixStatusMsg');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch(`${baseUrl()}/matrix/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image_base64: lastImageBase64,
+        filename: (document.getElementById('imageTitleInput').value || 'query_result').replace(/\s+/g, '_') + '.png',
+        caption: document.getElementById('matrixCaptionInput').value || null,
+        room_id: document.getElementById('matrixRoomInput').value || null,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.className = 'status-msg error';
+      msg.textContent = data.detail || 'Could not send to Matrix';
+    } else {
+      msg.className = 'status-msg success';
+      msg.textContent = 'Sent to Matrix room successfully.';
+    }
+  } catch (e) {
+    msg.className = 'status-msg error';
+    msg.textContent = 'Could not reach the service.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send to Matrix';
+};
+
+loadProfiles();
+
+// ================= TAB SWITCHING =================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tabConsole').style.display = btn.dataset.tab === 'console' ? 'grid' : 'none';
+    document.getElementById('tabAutomations').style.display = btn.dataset.tab === 'automations' ? 'grid' : 'none';
+    document.getElementById('tabDatabases').style.display = btn.dataset.tab === 'databases' ? 'grid' : 'none';
+    if (btn.dataset.tab === 'automations') loadAutomations();
+    if (btn.dataset.tab === 'databases') loadDatabases();
+  };
+});
+
+// ================= AUTOMATIONS =================
+async function loadAutomations() {
+  const list = document.getElementById('automationsList');
+  list.innerHTML = '<div class="empty-state">Loading...</div>';
+  try {
+    const res = await fetch(baseUrl() + '/saved-queries');
+    const data = await res.json();
+    if (!data.queries.length) {
+      list.innerHTML = '<div class="empty-state"><div class="glyph">{ }</div>Koi automation nahi bani abhi. "+ New automation" se shuru karein.</div>';
+      return;
+    }
+    list.innerHTML = data.queries.map(q => `
+      <div class="list-item">
+        <div class="list-item-main">
+          <div class="list-item-title">${q.name}
+            <span class="badge ${q.enabled ? 'on' : 'off'}">${q.enabled ? 'enabled' : 'disabled'}</span>
+            ${q.last_run_status ? `<span class="badge ${q.last_run_status === 'success' ? 'on' : 'error'}">${q.last_run_status}</span>` : ''}
+          </div>
+          <div class="list-item-sub">${q.profile} / ${q.collection} · ${q.operation} · ${q.schedule_type === 'daily' ? 'daily at ' + q.run_at_time : q.schedule_type === 'interval' ? 'every ' + q.schedule_minutes + ' min' : 'manual only'}${q.last_run_at ? ' · last run: ' + new Date(q.last_run_at).toLocaleString() : ''}</div>
+        </div>
+        <div class="list-item-actions">
+          <button class="small-btn" onclick="runAutomationNow('${q.id}')">Run now</button>
+          <button class="small-btn" onclick="deleteAutomation('${q.id}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="error-box">Could not load automations.</div>';
+  }
+}
+
+async function runAutomationNow(id) {
+  await fetch(`${baseUrl()}/saved-queries/${id}/run-now`, { method: 'POST' });
+  loadAutomations();
+}
+
+async function deleteAutomation(id) {
+  if (!confirm('Ye automation delete karein? Ye permanent hai.')) return;
+  await fetch(`${baseUrl()}/saved-queries/${id}`, { method: 'DELETE' });
+  loadAutomations();
+}
+
+document.getElementById('newAutomationBtn').onclick = async () => {
+  document.getElementById('automationFormCard').style.display = 'block';
+  const profSelect = document.getElementById('autoProfile');
+  const res = await fetch(baseUrl() + '/profiles');
+  const data = await res.json();
+  profSelect.innerHTML = data.profiles.map(p => `<option value="${p.name}">${p.label}</option>`).join('');
+};
+
+document.getElementById('cancelAutomationBtn').onclick = () => {
+  document.getElementById('automationFormCard').style.display = 'none';
+};
+
+document.getElementById('autoOperation').onchange = (e) => {
+  document.getElementById('autoFindFields').style.display = e.target.value === 'find' ? 'block' : 'none';
+  document.getElementById('autoAggFields').style.display = e.target.value === 'aggregate' ? 'block' : 'none';
+};
+
+document.getElementById('autoScheduleType').onchange = (e) => {
+  document.getElementById('autoIntervalField').style.display = e.target.value === 'interval' ? 'block' : 'none';
+  document.getElementById('autoDailyField').style.display = e.target.value === 'daily' ? 'block' : 'none';
+};
+
+document.getElementById('saveAutomationBtn').onclick = async () => {
+  const operation = document.getElementById('autoOperation').value;
+  const scheduleType = document.getElementById('autoScheduleType').value;
+  const body = {
+    name: document.getElementById('autoName').value,
+    profile: document.getElementById('autoProfile').value,
+    collection: document.getElementById('autoCollection').value,
+    operation,
+    filter: operation === 'find' ? safeParse(document.getElementById('autoFilter').value, {}) : {},
+    pipeline: operation === 'aggregate' ? safeParse(document.getElementById('autoPipeline').value, []) : [],
+    image_type: document.getElementById('autoImageType').value,
+    title: document.getElementById('autoTitle').value,
+    schedule_type: scheduleType,
+    schedule_minutes: scheduleType === 'interval' ? (parseInt(document.getElementById('autoScheduleMinutes').value, 10) || 0) : 0,
+    run_at_time: scheduleType === 'daily' ? document.getElementById('autoRunAtTime').value : null,
+    enabled: document.getElementById('autoEnabled').checked,
+    matrix_room_id: document.getElementById('autoRoomId').value || null,
+    caption: document.getElementById('autoCaption').value || null,
+  };
+  if (!body.name || !body.collection) { alert('Name aur Collection zaroori hain.'); return; }
+
+  try {
+    const res = await fetch(baseUrl() + '/saved-queries', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'Error'); return; }
+    document.getElementById('automationFormCard').style.display = 'none';
+    loadAutomations();
+  } catch (e) { alert('Could not reach the service.'); }
+};
+
+// ================= DATABASES =================
+async function loadDatabases() {
+  const list = document.getElementById('databasesList');
+  list.innerHTML = '<div class="empty-state">Loading...</div>';
+  try {
+    const res = await fetch(baseUrl() + '/profiles');
+    const data = await res.json();
+    list.innerHTML = data.profiles.map(p => `
+      <div class="list-item">
+        <div class="list-item-main">
+          <div class="list-item-title">${p.label}
+            <span class="badge ${p.connected ? 'on' : 'error'}">${p.connected ? 'connected' : 'unreachable'}</span>
+            ${p.requires_vpn ? '<span class="badge vpn">VPN</span>' : ''}
+          </div>
+          <div class="list-item-sub">${p.name} · db: ${p.db_name} · ${p.active_automations} active automation${p.active_automations === 1 ? '' : 's'}</div>
+        </div>
+        <div class="list-item-actions">
+          <button class="small-btn danger" onclick="deleteDatabase('${p.name}')">Delete</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="error-box">Could not load databases.</div>';
+  }
+}
+
+async function deleteDatabase(name) {
+  if (!confirm(`'${name}' database profile delete karein? Iski automations bhi ruk jaayengi.`)) return;
+  const res = await fetch(`${baseUrl()}/profiles/${name}`, { method: 'DELETE' });
+  if (!res.ok) { const d = await res.json(); alert(d.detail || 'Could not delete'); return; }
+  loadDatabases();
+  loadProfiles();
+}
+
+document.getElementById('newDbBtn').onclick = () => {
+  document.getElementById('dbFormCard').style.display = 'block';
+};
+document.getElementById('cancelDbBtn').onclick = () => {
+  document.getElementById('dbFormCard').style.display = 'none';
+};
+
+document.getElementById('saveDbBtn').onclick = async () => {
+  const body = {
+    name: document.getElementById('dbName').value.trim(),
+    label: document.getElementById('dbLabel').value.trim() || document.getElementById('dbName').value.trim(),
+    mongo_uri: document.getElementById('dbUri').value.trim(),
+    db_name: document.getElementById('dbDatabaseName').value.trim(),
+    requires_vpn: document.getElementById('dbRequiresVpn').checked,
+  };
+  if (!body.name || !body.mongo_uri || !body.db_name) { alert('Profile name, Mongo URI, aur Database name zaroori hain.'); return; }
+
+  try {
+    const res = await fetch(baseUrl() + '/profiles', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    if (!res.ok) { const d = await res.json(); alert(d.detail || 'Error'); return; }
+    document.getElementById('dbFormCard').style.display = 'none';
+    loadDatabases();
+    loadProfiles();
+  } catch (e) { alert('Could not reach the service.'); }
+};
+document.getElementById('baseUrl').addEventListener('change', async () => {
+  await checkHealth();
+  await loadCollections();
+});
+
+document.getElementById('previewToggle').onclick = () => {
+  const box = document.getElementById('previewBox');
+  const toggle = document.getElementById('previewToggle');
+  updatePreview();
+  box.classList.toggle('show');
+  toggle.textContent = box.classList.contains('show') ? '▾ hide generated query' : '▸ view generated query';
+};
+
+document.getElementById('tableViewBtn').onclick = () => {
+  state.view = 'table';
+  document.getElementById('tableViewBtn').classList.add('active');
+  document.getElementById('jsonViewBtn').classList.remove('active');
+  renderResults();
+};
+document.getElementById('jsonViewBtn').onclick = () => {
+  state.view = 'json';
+  document.getElementById('jsonViewBtn').classList.add('active');
+  document.getElementById('tableViewBtn').classList.remove('active');
+  renderResults();
+};
+
+addFilterRow();
+checkHealth();
+loadCollections();
+</script>
+
+</body>
+</html>

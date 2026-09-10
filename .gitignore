@@ -1,0 +1,13 @@
+# Secrets & personal config
+config.yaml
+saved_queries.yaml
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Stray/unused
+import.py
+requirements.py
+mongodb_generic_service2/
